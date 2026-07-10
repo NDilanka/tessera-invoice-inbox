@@ -18,7 +18,12 @@
 import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+// @next/env is a CommonJS bundle; default-import + destructure so it works
+// under this package's ESM ("type": "module") resolution.
+import nextEnv from "@next/env";
 import { extractInvoice, MissingApiKeyError } from "@/lib/extract";
+
+const { loadEnvConfig } = nextEnv;
 import type { Invoice } from "@/lib/schema";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -30,24 +35,6 @@ interface Truth {
   date: string;
   address: string;
   total: string;
-}
-
-/** Minimal .env.local loader (no dep) so `npm run eval` works after copying the example. */
-function loadEnvLocal() {
-  const path = join(HERE, "..", ".env.local");
-  if (!existsSync(path)) return;
-  for (const raw of readFileSync(path, "utf8").split(/\r?\n/)) {
-    const line = raw.trim();
-    if (!line || line.startsWith("#")) continue;
-    const eq = line.indexOf("=");
-    if (eq === -1) continue;
-    const key = line.slice(0, eq).trim();
-    let val = line.slice(eq + 1).trim();
-    if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
-      val = val.slice(1, -1);
-    }
-    if (!(key in process.env)) process.env[key] = val;
-  }
 }
 
 // --- Normalizers ------------------------------------------------------------
@@ -106,7 +93,9 @@ function tick(b: boolean) {
 }
 
 async function main() {
-  loadEnvLocal();
+  // Load .env.local (and the other Next env files) the same way next dev/build
+  // do, so `npm run eval` works with keys in .env.local, not just the shell.
+  loadEnvConfig(process.cwd());
 
   if (!process.env.ANTHROPIC_API_KEY) {
     console.error(
