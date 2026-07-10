@@ -1,0 +1,30 @@
+{
+  "name": "tessera-invoice-inbox",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "gen:samples": "tsx scripts/generate-samples.ts",
+    "eval": "tsx scripts/eval-extraction.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.110.0",
+    "next": "^16.2.9",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@napi-rs/canvas": "^0.1.100",
+    "@types/node": "^20.14.0",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "pdf-lib": "^1.17.1",
+    "tsx": "^4.23.0",
+    "typescript": "^5.9.0"
+  }
+}
