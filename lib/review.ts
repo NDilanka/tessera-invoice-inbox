@@ -36,10 +36,24 @@ export function isParseableDate(value: string): boolean {
   const s = value.trim();
   if (!s) return false;
   const iso = /^\d{4}-\d{2}-\d{2}$/;
-  const dmy = /^\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2,4}$/;
-  if (!iso.test(s) && !dmy.test(s) && Number.isNaN(Date.parse(s))) return false;
-  const t = Date.parse(iso.test(s) ? s : s.replace(/[.]/g, "/"));
-  return !Number.isNaN(t);
+  if (iso.test(s)) return !Number.isNaN(Date.parse(s));
+  // Day-first DMY (e.g. 25/12/2019). Validate the components numerically —
+  // Date.parse would (mis)read this as MDY and reject a valid day-first date.
+  const dmy = s.match(/^(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{2,4})$/);
+  if (dmy) {
+    const day = Number(dmy[1]);
+    const month = Number(dmy[2]);
+    const year = Number(dmy[3].length === 2 ? `20${dmy[3]}` : dmy[3]);
+    return (
+      day >= 1 &&
+      day <= 31 &&
+      month >= 1 &&
+      month <= 12 &&
+      year >= 1900 &&
+      year <= 2100
+    );
+  }
+  return !Number.isNaN(Date.parse(s));
 }
 
 /**

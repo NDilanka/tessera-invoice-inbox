@@ -21,6 +21,18 @@ export class MissingApiKeyError extends Error {
   }
 }
 
+/**
+ * Thrown when the model's response is truncated (stop_reason === "max_tokens")
+ * before the tool call completes — the caller turns this into a friendly 422
+ * instead of a generic 500 / zod parse throw.
+ */
+export class OutputLimitError extends Error {
+  constructor() {
+    super("Extraction hit the output token limit before completing.");
+    this.name = "OutputLimitError";
+  }
+}
+
 export type SupportedMedia =
   | "application/pdf"
   | "image/jpeg"
@@ -32,7 +44,7 @@ const TOOL_NAME = "record_invoice";
 // validates exactly against this shape. Optional/absent fields are modelled as
 // nullable-and-required so strict mode is satisfied while still letting the model
 // signal "not present on this document" with an explicit null.
-const nullableNumber = { type: ["number", "null"] } as const;
+const nullableNumber = { anyOf: [{ type: "number" }, { type: "null" }] } as const;
 const confidenceEnum = {
   type: "string",
   enum: ["high", "medium", "low"],
@@ -68,7 +80,7 @@ const INPUT_SCHEMA = {
           description: "Issue date, normalized to ISO 8601 (YYYY-MM-DD) if possible.",
         },
         dueDate: {
-          type: ["string", "null"],
+          anyOf: [{ type: "string" }, { type: "null" }],
           description: "Payment due date (ISO 8601) or null if not present.",
         },
         currency: {
@@ -178,6 +190,12 @@ export async function extractInvoice(
       },
     ],
   });
+
+  // Truncated before the tool call finished — the JSON is incomplete, so
+  // parsing it would throw. Surface a structured error the route maps to 422.
+  if (response.stop_reason === "max_tokens") {
+    throw new OutputLimitError();
+  }
 
   const toolUse = response.content.find(
     (b): b is Anthropic.ToolUseBlock => b.type === "tool_use",

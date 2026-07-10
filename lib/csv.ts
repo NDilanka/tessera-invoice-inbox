@@ -5,7 +5,10 @@ import type { Invoice } from "@/lib/schema";
 /** RFC-4180-ish escaping: wrap in quotes and double any embedded quotes. */
 function cell(value: string | number | null | undefined): string {
   if (value === null || value === undefined) return "";
-  const s = String(value);
+  let s = String(value);
+  // Neutralize CSV formula injection: a leading =, +, -, or @ can be
+  // interpreted as a formula by Excel/Sheets. Prefix with a single quote.
+  if (/^[=+\-@]/.test(s)) s = `'${s}`;
   if (/[",\r\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
   return s;
 }

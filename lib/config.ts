@@ -24,7 +24,7 @@
 export const EXTRACTION_MODEL = "claude-haiku-4-5";
 
 /** Hard cap on output tokens for one extraction. A structured invoice fits easily. */
-export const MAX_OUTPUT_TOKENS = 2048;
+export const MAX_OUTPUT_TOKENS = 4096;
 
 // --- Upload limits ----------------------------------------------------------
 /** Max upload size. Kept well under the serverless body limit; see DECISIONS.md. */

@@ -68,7 +68,13 @@ function normDate(s: string): string | null {
     return `${y}-${pad(m)}-${pad(d)}`;
   }
   const t = Date.parse(v);
-  return Number.isNaN(t) ? null : new Date(t).toISOString().slice(0, 10);
+  if (Number.isNaN(t)) return null;
+  // Re-project the parsed instant into UTC components so the YYYY-MM-DD slice
+  // is timezone-independent (a local-midnight parse would otherwise shift a day
+  // west of UTC). e.g. "15 Jan 2019" → 2019-01-15 on any machine TZ.
+  const d = new Date(t);
+  const utc = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  return utc.toISOString().slice(0, 10);
 }
 
 /** Strip currency symbols / thousands separators to a fixed-2 numeric string, or null. */

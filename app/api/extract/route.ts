@@ -5,7 +5,12 @@ import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { PDFDocument } from "pdf-lib";
 import { runGuards } from "@/lib/guards";
-import { extractInvoice, MissingApiKeyError, type SupportedMedia } from "@/lib/extract";
+import {
+  extractInvoice,
+  MissingApiKeyError,
+  OutputLimitError,
+  type SupportedMedia,
+} from "@/lib/extract";
 import { MAX_FILE_BYTES, MAX_PDF_PAGES, ACCEPTED_MIME } from "@/lib/config";
 
 // Node runtime: pdf-lib and the Anthropic SDK need Node APIs (Buffer, etc.).
@@ -13,6 +18,25 @@ export const runtime = "nodejs";
 
 function bad(status: number, error: string, message: string) {
   return NextResponse.json({ error, message }, { status });
+}
+
+/** Verify the buffer's leading bytes match the claimed MIME type. */
+function magicBytesMatch(bytes: Buffer, media: string): boolean {
+  if (media === "application/pdf") {
+    return bytes.subarray(0, 5).toString("latin1") === "%PDF-";
+  }
+  if (media === "image/jpeg") {
+    return bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  }
+  if (media === "image/png") {
+    return (
+      bytes[0] === 0x89 &&
+      bytes[1] === 0x50 && // P
+      bytes[2] === 0x4e && // N
+      bytes[3] === 0x47 // G
+    );
+  }
+  return false;
 }
 
 export async function POST(req: Request) {
@@ -51,9 +75,24 @@ export async function POST(req: Request) {
     );
   }
 
-  const bytes = Buffer.from(await file.arrayBuffer());
+  // 3. Abuse guards (Turnstile, then per-IP + daily). Run before any buffering
+  //    or PDF parsing so blocked requests never spend that work, the API, or the
+  //    daily counter.
+  const verdict = await runGuards(req, turnstileToken);
+  if (!verdict.ok) return bad(verdict.status, verdict.error, verdict.message);
 
-  // 3. PDFs: enforce the page cap so we can't be handed a 500-page document.
+  // 4. Buffer the upload, then verify the magic bytes match the claimed type
+  //    (a text file renamed .png must not reach pdf-lib or the model).
+  const bytes = Buffer.from(await file.arrayBuffer());
+  if (!magicBytesMatch(bytes, media)) {
+    return bad(
+      415,
+      "unsupported_type",
+      "Only PDF, JPG, and PNG files are supported.",
+    );
+  }
+
+  // 5. PDFs: enforce the page cap so we can't be handed a 500-page document.
   if (media === "application/pdf") {
     try {
       const doc = await PDFDocument.load(bytes, { updateMetadata: false });
@@ -70,12 +109,7 @@ export async function POST(req: Request) {
     }
   }
 
-  // 4. Abuse guards (Turnstile, then per-IP + daily). Blocked requests never
-  //    reach the API or the daily counter.
-  const verdict = await runGuards(req, turnstileToken);
-  if (!verdict.ok) return bad(verdict.status, verdict.error, verdict.message);
-
-  // 5. Extract.
+  // 6. Extract.
   try {
     const result = await extractInvoice(bytes, media as SupportedMedia);
     return NextResponse.json(result);
@@ -85,6 +119,13 @@ export async function POST(req: Request) {
         503,
         "no_api_key",
         "The extraction service isn't configured yet (ANTHROPIC_API_KEY is not set).",
+      );
+    }
+    if (err instanceof OutputLimitError) {
+      return bad(
+        422,
+        "output_limit",
+        "This document is too complex for the demo (output limit reached). Try a shorter document.",
       );
     }
     if (err instanceof Anthropic.RateLimitError) {
