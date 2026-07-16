@@ -113,3 +113,32 @@ through as an OpenAI `function` tool — that format accepts JSON Schema, so the
 
 Bottom line: eval metrics may be **measured via OpenRouter serving the same
 `claude-haiku-4.5`**; the production default remains the native Anthropic API.
+
+## 7. The extraction eval stays Anthropic-gated (no Gemini free-tier path)
+
+The sibling ops-agent added a Gemini free-tier path so its tool-choice eval runs
+at $0. We deliberately do **not** mirror that here.
+
+**Decision.** The extraction eval remains gated on Anthropic (native
+`ANTHROPIC_API_KEY`), with OpenRouter as the only fallback. Deploy waits for an
+Anthropic key rather than green-lighting a free Gemini run.
+
+**Why.**
+
+- **Base64 image input through a Gemini OpenAI-compat layer is unverified.** This
+  eval is image-based (SROIE `.jpg` → data-URI). Gemini's OpenAI-compatibility
+  endpoint has known quirks around multimodal `image_url` payloads, and we have
+  not confirmed it round-trips base64 images into the strict tool call cleanly.
+  Publishing eval numbers off an unverified input path would be dishonest.
+- **Native Anthropic strict tool-use is this repo's differentiator.** The whole
+  point here is API-enforced `strict: true` structured extraction (decision #1).
+  Measuring the eval through a compat shim that only best-effort honours the
+  `strict` flag would undercut the exact property we are trying to demonstrate.
+- **The OpenRouter fallback is an escape hatch, not a substitute.** It exists
+  (decision #6) only so the eval *can* run without a direct Anthropic key; it is
+  not a green light to characterize the model on a non-native path. When both
+  keys are absent the eval simply refuses rather than silently degrading.
+
+Bottom line: the differentiator is native Anthropic strict tool-use, so the eval
+stays Anthropic-gated; OpenRouter remains an env-gated escape hatch and deploy
+waits for an Anthropic key.
