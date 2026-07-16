@@ -76,3 +76,40 @@ real users nothing while bounding token spend and latency; (c) validating type/s
 count at the boundary means a bad upload is a fast, friendly `413/415/422`, never a
 half-processed request that burned an API call. The page count is checked with `pdf-lib`
 before the document ever reaches the model.
+
+## 6. Env-gated OpenRouter fallback for running the eval
+
+Production talks to the **native Anthropic API** (decision #1), which needs `ANTHROPIC_API_KEY`.
+To let the SROIE eval run against a funded **OpenRouter** account instead, there's an
+env-gated fallback centralized in `lib/config.ts` (`resolveExtractionProvider`):
+
+- `ANTHROPIC_API_KEY` set → direct Anthropic — **the production default, unchanged.**
+- else `OPENROUTER_API_KEY` set → OpenRouter serving the **same model** (`anthropic/claude-haiku-4.5`, i.e. the same `claude-haiku-4-5` Anthropic serves).
+- else → a friendly missing-key error.
+
+Anthropic always wins when both are present, so nothing about the production path changes.
+
+**Why the fallback isn't just a base-URL swap.** OpenRouter's docs
+(https://openrouter.ai/docs) expose only an OpenAI-compatible
+`/api/v1/chat/completions` route — there is **no** Anthropic-native `/v1/messages`
+endpoint, so we can't simply point `@anthropic-ai/sdk` at an OpenRouter base URL
+and reuse the native tool-use call. The fallback therefore lives only in the
+extraction call path (`lib/extract.ts` → `callOpenRouter`), issuing the
+OpenAI-compatible request directly. The existing strict tool schema is passed
+through as an OpenAI `function` tool — that format accepts JSON Schema, so the
+`anyOf`-nullable pattern for optional fields is preserved verbatim.
+
+**Honest pipeline-mechanics differences to keep in mind when reading eval numbers:**
+
+- **Image-only on the fallback.** The eval is image-based (SROIE `.jpg`), so
+  `callOpenRouter` handles images (`image_url` data-URI) and deliberately refuses
+  PDFs; native Anthropic keeps its first-class `document` block for PDFs in
+  production. The eval exercises the same model either way.
+- **Strict-mode enforcement.** On native Anthropic, `strict: true` is enforced by
+  the API. Through OpenRouter, strictness depends on the upstream provider's
+  handling of the OpenAI `strict` flag; either way we re-validate the tool output
+  with the same Zod schema, so a malformed response fails at our boundary rather
+  than reaching the UI.
+
+Bottom line: eval metrics may be **measured via OpenRouter serving the same
+`claude-haiku-4.5`**; the production default remains the native Anthropic API.

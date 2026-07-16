@@ -26,6 +26,56 @@ export const EXTRACTION_MODEL = "claude-haiku-4-5";
 /** Hard cap on output tokens for one extraction. A structured invoice fits easily. */
 export const MAX_OUTPUT_TOKENS = 4096;
 
+// --- Eval / fallback provider (OpenRouter) ----------------------------------
+// Production default is the NATIVE Anthropic API (above). This block adds an
+// env-gated fallback so the SROIE eval can run against the user's funded
+// OpenRouter account when no ANTHROPIC_API_KEY is present — serving the SAME
+// model. See DECISIONS.md.
+//
+// OpenRouter's docs (https://openrouter.ai/docs) expose only an OpenAI-style
+// `/api/v1/chat/completions` route; there is NO Anthropic-native `/v1/messages`
+// endpoint we could reach by pointing @anthropic-ai/sdk at a custom baseURL. So
+// the fallback is implemented against this OpenAI-compatible route in
+// lib/extract.ts (image extraction only — the eval is image-based).
+/** OpenRouter's OpenAI-compatible API root. */
+export const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
+/**
+ * The same model as production, addressed the OpenRouter way. Anthropic's own
+ * alias is `claude-haiku-4-5`; OpenRouter routes the identical model as
+ * `anthropic/claude-haiku-4.5`.
+ */
+export const OPENROUTER_MODEL = "anthropic/claude-haiku-4.5";
+
+/** Which backend serves an extraction, resolved from the environment. */
+export type ExtractionProvider =
+  | { kind: "anthropic"; model: string }
+  | { kind: "openrouter"; apiKey: string; baseURL: string; model: string };
+
+/**
+ * Pick the extraction provider from environment variables only:
+ *   - `ANTHROPIC_API_KEY` set   → direct Anthropic (production default).
+ *   - else `OPENROUTER_API_KEY` → OpenRouter serving the same model (eval fallback).
+ *   - else                      → `null` (caller raises a missing-key error).
+ *
+ * Anthropic always wins when both are set, so production behaviour is unchanged
+ * — the fallback only ever engages when ANTHROPIC_API_KEY is absent.
+ */
+export function resolveExtractionProvider(): ExtractionProvider | null {
+  if (process.env.ANTHROPIC_API_KEY) {
+    return { kind: "anthropic", model: EXTRACTION_MODEL };
+  }
+  const openrouterKey = process.env.OPENROUTER_API_KEY;
+  if (openrouterKey) {
+    return {
+      kind: "openrouter",
+      apiKey: openrouterKey,
+      baseURL: OPENROUTER_BASE_URL,
+      model: OPENROUTER_MODEL,
+    };
+  }
+  return null;
+}
+
 // --- Upload limits ----------------------------------------------------------
 /** Max upload size. Kept well under the serverless body limit; see DECISIONS.md. */
 export const MAX_FILE_BYTES = 4 * 1024 * 1024; // 4 MB
