@@ -9,14 +9,22 @@
 // Each field's displayed status is the WORST of the two.
 
 import Anthropic from "@anthropic-ai/sdk";
-import { EXTRACTION_MODEL, MAX_OUTPUT_TOKENS } from "@/lib/config";
+import {
+  MAX_OUTPUT_TOKENS,
+  resolveExtractionProvider,
+  type ExtractionProvider,
+} from "@/lib/config";
 import { ModelOutputSchema, CONFIDENCE_FIELDS, type ExtractionResult } from "@/lib/schema";
 import { buildResult } from "@/lib/review";
 
-/** Thrown when the API key is missing — the caller turns this into a friendly 503. */
+/**
+ * Thrown when no extraction provider is configured — the caller turns this into
+ * a friendly 503. Production expects ANTHROPIC_API_KEY; the eval/fallback path
+ * (see DECISIONS.md) also accepts OPENROUTER_API_KEY.
+ */
 export class MissingApiKeyError extends Error {
   constructor() {
-    super("ANTHROPIC_API_KEY is not set");
+    super("No extraction provider configured (set ANTHROPIC_API_KEY, or OPENROUTER_API_KEY for the eval fallback)");
     this.name = "MissingApiKeyError";
   }
 }
@@ -128,9 +136,14 @@ const SYSTEM_PROMPT =
   "absent from the document, use null (never a made-up value). Report an honest " +
   "per-field confidence.";
 
+const TOOL_DESCRIPTION =
+  "Record the structured contents of one invoice or receipt.";
+const USER_INSTRUCTION = "Extract this document into the record_invoice tool.";
+
 let cachedClient: Anthropic | null = null;
 function getClient(): Anthropic {
-  if (!process.env.ANTHROPIC_API_KEY) throw new MissingApiKeyError();
+  // The client reads ANTHROPIC_API_KEY from the environment. Provider
+  // resolution has already confirmed the key is present when we get here.
   if (!cachedClient) cachedClient = new Anthropic();
   return cachedClient;
 }
@@ -152,25 +165,24 @@ function documentBlock(
 }
 
 /**
- * Call the model and return the validated structured output plus the derived
- * review signals. Throws MissingApiKeyError if no key is configured, and lets
- * the SDK's typed errors (rate limit, etc.) propagate to the caller.
+ * Production path: the NATIVE Anthropic API with tool-use (strict schema).
+ * Returns the raw tool-call input for the caller to validate.
  */
-export async function extractInvoice(
-  bytes: Buffer,
+async function callAnthropic(
+  provider: Extract<ExtractionProvider, { kind: "anthropic" }>,
+  base64: string,
   media: SupportedMedia,
-): Promise<ExtractionResult> {
+): Promise<unknown> {
   const client = getClient();
-  const base64 = bytes.toString("base64");
 
   const response = await client.messages.create({
-    model: EXTRACTION_MODEL,
+    model: provider.model,
     max_tokens: MAX_OUTPUT_TOKENS,
     system: SYSTEM_PROMPT,
     tools: [
       {
         name: TOOL_NAME,
-        description: "Record the structured contents of one invoice or receipt.",
+        description: TOOL_DESCRIPTION,
         // strict: true makes the API enforce INPUT_SCHEMA exactly.
         strict: true,
         input_schema: INPUT_SCHEMA as unknown as Anthropic.Tool.InputSchema,
@@ -182,10 +194,7 @@ export async function extractInvoice(
         role: "user",
         content: [
           documentBlock(base64, media),
-          {
-            type: "text",
-            text: "Extract this document into the record_invoice tool.",
-          },
+          { type: "text", text: USER_INSTRUCTION },
         ],
       },
     ],
@@ -203,10 +212,124 @@ export async function extractInvoice(
   if (!toolUse) {
     throw new Error("Model did not return a tool call for extraction.");
   }
+  return toolUse.input;
+}
 
-  // Enforced by strict:true, but we re-validate so a bad response fails loudly
-  // here rather than corrupting the UI downstream.
-  const { invoice, fieldConfidence } = ModelOutputSchema.parse(toolUse.input);
+// Minimal shape of the OpenAI-compatible chat-completions response we read.
+interface OpenAIChatResponse {
+  choices?: Array<{
+    finish_reason?: string;
+    message?: {
+      tool_calls?: Array<{ function?: { name?: string; arguments?: string } }>;
+    };
+  }>;
+}
+
+/**
+ * EVAL / FALLBACK path (see DECISIONS.md): the SAME model served by OpenRouter
+ * via its OpenAI-compatible `/chat/completions` route. OpenRouter documents no
+ * Anthropic-native endpoint, so we map the existing strict tool schema into the
+ * OpenAI `tools` (function) format — the mapping is pass-through because that
+ * format accepts JSON Schema, so the anyOf-nullable semantics are preserved.
+ *
+ * Image extraction only: the eval is image-based, and production PDFs stay on
+ * the native Anthropic `document` block. Returns the raw tool-call arguments
+ * for the caller to validate with the same Zod schema as production.
+ */
+async function callOpenRouter(
+  provider: Extract<ExtractionProvider, { kind: "openrouter" }>,
+  base64: string,
+  media: SupportedMedia,
+): Promise<unknown> {
+  if (media === "application/pdf") {
+    throw new Error(
+      "The OpenRouter eval fallback supports image extraction only. Run PDF extraction through the native Anthropic path (set ANTHROPIC_API_KEY).",
+    );
+  }
+
+  const res = await fetch(`${provider.baseURL}/chat/completions`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${provider.apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: provider.model,
+      max_tokens: MAX_OUTPUT_TOKENS,
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        {
+          role: "user",
+          content: [
+            { type: "text", text: USER_INSTRUCTION },
+            {
+              type: "image_url",
+              image_url: { url: `data:${media};base64,${base64}` },
+            },
+          ],
+        },
+      ],
+      tools: [
+        {
+          type: "function",
+          function: {
+            name: TOOL_NAME,
+            description: TOOL_DESCRIPTION,
+            // The OpenAI tools format accepts JSON Schema, so INPUT_SCHEMA
+            // (incl. the anyOf-nullable pattern) passes through unchanged.
+            strict: true,
+            parameters: INPUT_SCHEMA,
+          },
+        },
+      ],
+      tool_choice: { type: "function", function: { name: TOOL_NAME } },
+    }),
+  });
+
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    throw new Error(
+      `OpenRouter extraction request failed (${res.status}): ${detail.slice(0, 300)}`,
+    );
+  }
+
+  const data = (await res.json()) as OpenAIChatResponse;
+  const choice = data.choices?.[0];
+
+  // Truncated before the tool call finished — mirror the native path's 422.
+  if (choice?.finish_reason === "length") {
+    throw new OutputLimitError();
+  }
+
+  const args = choice?.message?.tool_calls?.[0]?.function?.arguments;
+  if (!args) {
+    throw new Error("OpenRouter model did not return a tool call for extraction.");
+  }
+  return JSON.parse(args);
+}
+
+/**
+ * Call the model and return the validated structured output plus the derived
+ * review signals. Uses the native Anthropic API by default, or the OpenRouter
+ * fallback when only OPENROUTER_API_KEY is set (see resolveExtractionProvider).
+ * Throws MissingApiKeyError if no provider is configured.
+ */
+export async function extractInvoice(
+  bytes: Buffer,
+  media: SupportedMedia,
+): Promise<ExtractionResult> {
+  const provider = resolveExtractionProvider();
+  if (!provider) throw new MissingApiKeyError();
+
+  const base64 = bytes.toString("base64");
+  const rawInput =
+    provider.kind === "openrouter"
+      ? await callOpenRouter(provider, base64, media)
+      : await callAnthropic(provider, base64, media);
+
+  // Enforced by strict tool use, but we re-validate so a bad response fails
+  // loudly here rather than corrupting the UI downstream.
+  const { invoice, fieldConfidence } = ModelOutputSchema.parse(rawInput);
 
   return buildResult(invoice, fieldConfidence);
 }
