@@ -79,6 +79,10 @@ before the document ever reaches the model.
 
 ## 6. Env-gated OpenRouter fallback for running the eval
 
+> **Superseded by #8.** The premise below ("no Anthropic-native endpoint") stopped
+> being true: OpenRouter now exposes an Anthropic-Messages-compatible endpoint,
+> so the separate OpenAI-compat call path was removed. Kept for the record.
+
 Production talks to the **native Anthropic API** (decision #1), which needs `ANTHROPIC_API_KEY`.
 To let the SROIE eval run against a funded **OpenRouter** account instead, there's an
 env-gated fallback centralized in `lib/config.ts` (`resolveExtractionProvider`):
@@ -142,3 +146,25 @@ Anthropic key rather than green-lighting a free Gemini run.
 Bottom line: the differentiator is native Anthropic strict tool-use, so the eval
 stays Anthropic-gated; OpenRouter remains an env-gated escape hatch and deploy
 waits for an Anthropic key.
+
+## 8. OpenRouter via the native SDK (Anthropic Skin) — supersedes #6
+
+OpenRouter now exposes an **Anthropic-Messages-compatible endpoint** (its
+"Anthropic Skin", base URL `https://openrouter.ai/api`), which the official
+`@anthropic-ai/sdk` can target directly:
+
+```ts
+new Anthropic({ baseURL: "https://openrouter.ai/api", authToken: OPENROUTER_API_KEY })
+```
+
+That dissolves decision #6's entire tradeoff. There is now **one** call path —
+the native SDK with API-enforced `strict: true` tool-use — and the provider is
+just a client-construction detail (`resolveAnthropicClientOptions()` in
+`lib/config.ts`). The separate OpenAI-compat `callOpenRouter` path, its
+image-only restriction, and its best-effort strictness caveat are all deleted.
+`ANTHROPIC_API_KEY` still wins when both keys are set, so production is
+unchanged. The model id differs per provider (`claude-haiku-4-5` natively,
+`anthropic/claude-haiku-4.5` on OpenRouter) — set via `EXTRACTION_MODEL`, read
+at call time. Decision #7's honesty concerns no longer apply to the OpenRouter
+route: it exercises the identical native request. Verified empirically: the
+SROIE eval runs through the Skin with strict tool-use intact.

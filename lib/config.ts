@@ -20,58 +20,57 @@
  * tier is the right call — swapping to a stronger model is a one-line change
  * here. The API alias `claude-haiku-4-5` resolves to the pinned snapshot
  * `claude-haiku-4-5-20251001`.
+ *
+ * Overridable via the `EXTRACTION_MODEL` env var so the SAME code can target the
+ * model addressed the OpenRouter way at eval time (`anthropic/claude-haiku-4.5`)
+ * without a code change. Defaults to the native Anthropic alias — production is
+ * unaffected. See the OpenRouter routing block below and DECISIONS.md.
+ *
+ * Read at call time, not module load: the eval script imports this module before
+ * it runs loadEnvConfig(), so a module-level const would freeze the default and
+ * ignore `.env.local` (the key checks below are call-time for the same reason).
  */
-export const EXTRACTION_MODEL = "claude-haiku-4-5";
+export function extractionModel(): string {
+  return process.env.EXTRACTION_MODEL ?? "claude-haiku-4-5";
+}
 
 /** Hard cap on output tokens for one extraction. A structured invoice fits easily. */
 export const MAX_OUTPUT_TOKENS = 4096;
 
-// --- Eval / fallback provider (OpenRouter) ----------------------------------
-// Production default is the NATIVE Anthropic API (above). This block adds an
-// env-gated fallback so the SROIE eval can run against the user's funded
-// OpenRouter account when no ANTHROPIC_API_KEY is present — serving the SAME
-// model. See DECISIONS.md.
-//
-// OpenRouter's docs (https://openrouter.ai/docs) expose only an OpenAI-style
-// `/api/v1/chat/completions` route; there is NO Anthropic-native `/v1/messages`
-// endpoint we could reach by pointing @anthropic-ai/sdk at a custom baseURL. So
-// the fallback is implemented against this OpenAI-compatible route in
-// lib/extract.ts (image extraction only — the eval is image-based).
-/** OpenRouter's OpenAI-compatible API root. */
-export const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
+// --- Provider routing (native Anthropic vs OpenRouter "Anthropic Skin") ------
+// The demo's selling point is the NATIVE @anthropic-ai/sdk. OpenRouter exposes
+// an Anthropic-Messages-compatible endpoint (its "Anthropic Skin") that the same
+// official SDK can target by pointing `baseURL` at it and authenticating with a
+// Bearer token. Because it speaks the native Messages API, the SAME client, tool
+// schemas, and tool-use code path serve both providers — the only differences
+// are the base URL and Bearer auth. See DECISIONS.md.
+/** Root of OpenRouter's Anthropic-Messages-compatible endpoint. */
+export const OPENROUTER_BASE_URL = "https://openrouter.ai/api";
+
 /**
- * The same model as production, addressed the OpenRouter way. Anthropic's own
- * alias is `claude-haiku-4-5`; OpenRouter routes the identical model as
- * `anthropic/claude-haiku-4.5`.
+ * Constructor options for `new Anthropic(...)`, resolved from the environment.
+ * `{}` = native (the SDK reads `ANTHROPIC_API_KEY` itself); the OpenRouter form
+ * carries the base URL + Bearer token (`authToken`, NOT `apiKey` — OpenRouter
+ * authenticates with `Authorization: Bearer`).
  */
-export const OPENROUTER_MODEL = "anthropic/claude-haiku-4.5";
-
-/** Which backend serves an extraction, resolved from the environment. */
-export type ExtractionProvider =
-  | { kind: "anthropic"; model: string }
-  | { kind: "openrouter"; apiKey: string; baseURL: string; model: string };
+export type AnthropicClientOptions =
+  | Record<string, never>
+  | { baseURL: string; authToken: string };
 
 /**
- * Pick the extraction provider from environment variables only:
- *   - `ANTHROPIC_API_KEY` set   → direct Anthropic (production default).
- *   - else `OPENROUTER_API_KEY` → OpenRouter serving the same model (eval fallback).
- *   - else                      → `null` (caller raises a missing-key error).
+ * Pick how to construct the Anthropic client, from env vars only:
+ *   - `ANTHROPIC_API_KEY` set   → `{}` (native Anthropic; behaviour unchanged).
+ *   - else `OPENROUTER_API_KEY` → base URL + `authToken` for the Anthropic Skin.
+ *   - else                      → `null` (caller raises MissingApiKeyError).
  *
- * Anthropic always wins when both are set, so production behaviour is unchanged
- * — the fallback only ever engages when ANTHROPIC_API_KEY is absent.
+ * Anthropic always wins when both are set, so production behaviour is untouched
+ * — the OpenRouter route only ever engages when `ANTHROPIC_API_KEY` is absent.
  */
-export function resolveExtractionProvider(): ExtractionProvider | null {
-  if (process.env.ANTHROPIC_API_KEY) {
-    return { kind: "anthropic", model: EXTRACTION_MODEL };
-  }
+export function resolveAnthropicClientOptions(): AnthropicClientOptions | null {
+  if (process.env.ANTHROPIC_API_KEY) return {};
   const openrouterKey = process.env.OPENROUTER_API_KEY;
   if (openrouterKey) {
-    return {
-      kind: "openrouter",
-      apiKey: openrouterKey,
-      baseURL: OPENROUTER_BASE_URL,
-      model: OPENROUTER_MODEL,
-    };
+    return { baseURL: OPENROUTER_BASE_URL, authToken: openrouterKey };
   }
   return null;
 }

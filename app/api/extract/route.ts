@@ -118,7 +118,7 @@ export async function POST(req: Request) {
       return bad(
         503,
         "no_api_key",
-        "The extraction service isn't configured yet (ANTHROPIC_API_KEY is not set).",
+        "The extraction service isn't configured yet (set ANTHROPIC_API_KEY, or OPENROUTER_API_KEY for the OpenRouter route).",
       );
     }
     if (err instanceof OutputLimitError) {

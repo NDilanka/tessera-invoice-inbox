@@ -9,9 +9,10 @@
  *   total     -> total     (numeric, currency/commas stripped)
  * (SROIE's `address` has no counterpart in our schema and is not scored.)
  *
- * Needs ANTHROPIC_API_KEY at runtime. Without it, prints a friendly message and
- * exits 1 — this eval is designed to typecheck and fail gracefully, not to pass
- * without a key. Exits 1 if overall accuracy is below the 75% threshold.
+ * Needs ANTHROPIC_API_KEY (native) or OPENROUTER_API_KEY (+ EXTRACTION_MODEL=
+ * anthropic/claude-haiku-4.5) at runtime. Without either, prints a friendly
+ * message and exits 1 — this eval is designed to typecheck and fail gracefully,
+ * not to pass without a key. Exits 1 if overall accuracy is below the 75% threshold.
  *
  * Run:  npm run eval   (after copying .env.example -> .env.local and adding a key)
  */
@@ -22,7 +23,7 @@ import { fileURLToPath } from "node:url";
 // under this package's ESM ("type": "module") resolution.
 import nextEnv from "@next/env";
 import { extractInvoice, MissingApiKeyError } from "@/lib/extract";
-import { resolveExtractionProvider } from "@/lib/config";
+import { extractionModel, resolveAnthropicClientOptions } from "@/lib/config";
 
 const { loadEnvConfig } = nextEnv;
 import type { Invoice } from "@/lib/schema";
@@ -98,22 +99,23 @@ async function main() {
   // do, so `npm run eval` works with keys in .env.local, not just the shell.
   loadEnvConfig(process.cwd());
 
-  const provider = resolveExtractionProvider();
-  if (!provider) {
+  const clientOptions = resolveAnthropicClientOptions();
+  if (!clientOptions) {
     console.error(
       "\n  No extraction provider is configured.\n" +
         "  The SROIE eval calls a live model, so it needs a key. Either:\n" +
         "    • ANTHROPIC_API_KEY  — direct Anthropic (production default), or\n" +
-        "    • OPENROUTER_API_KEY — OpenRouter serving the same claude-haiku-4.5 (eval fallback).\n" +
+        "    • OPENROUTER_API_KEY — the same native SDK routed through OpenRouter's\n" +
+        "                           Anthropic Skin (set EXTRACTION_MODEL=anthropic/claude-haiku-4.5).\n" +
         "  Copy .env.example to .env.local and add one, then re-run `npm run eval`.\n",
     );
     process.exit(1);
   }
 
   const via =
-    provider.kind === "openrouter"
-      ? `OpenRouter (${provider.model}) — eval fallback`
-      : `Anthropic (${provider.model}) — production default`;
+    "baseURL" in clientOptions
+      ? `OpenRouter Anthropic Skin (${extractionModel()})`
+      : `Anthropic (${extractionModel()}) — production default`;
   console.log(`\n  Provider: ${via}`);
 
   const ids = readdirSync(EVAL_DIR)
