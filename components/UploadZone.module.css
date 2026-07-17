@@ -101,7 +101,6 @@
   border-radius: var(--radius-capsule);
   background: rgb(var(--glass-surface) / var(--glass-opacity));
   backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   border: 0.5px solid var(--glass-border);
   box-shadow: inset 0 0.5px 0 var(--glass-specular);
   color: var(--label);
@@ -123,7 +122,6 @@
 :global(.reduce-transparency) .chip {
   background: var(--fill);
   backdrop-filter: none;
-  -webkit-backdrop-filter: none;
 }
 
 .chip:active:not(:disabled) {
