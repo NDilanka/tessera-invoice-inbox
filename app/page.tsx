@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Inbox } from "lucide-react";
 import UploadZone from "@/components/UploadZone";
 import ResultView from "@/components/ResultView";
 import type { SampleDoc } from "@/lib/samples";
@@ -111,12 +112,24 @@ export default function Home() {
 
   const busy = status === "loading";
 
+  // Reduced-transparency: make every glass surface opaque (see ios26 USAGE).
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-transparency: reduce)");
+    const apply = () =>
+      document.documentElement.classList.toggle("reduce-transparency", mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
+
   return (
     <main className={styles.page}>
       <header className={styles.header}>
         <div className={styles.brand}>
-          <span className={styles.mark}>▰</span>
-          <span>Tessera Invoice Inbox</span>
+          <span className={styles.mark} aria-hidden="true">
+            <Inbox size={28} strokeWidth={1.8} />
+          </span>
+          <h1 className={styles.title}>Tessera Invoice Inbox</h1>
         </div>
         <p className={styles.tagline}>
           Drop an invoice or receipt → structured JSON with per-field confidence →

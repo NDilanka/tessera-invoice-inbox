@@ -1,57 +1,76 @@
 .page {
   max-width: 1080px;
   margin: 0 auto;
-  padding: 32px 24px 48px;
+  padding: var(--space-7) var(--space-6) var(--space-8);
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: var(--space-5);
 }
 
 .header {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-2);
 }
 
 .brand {
   display: flex;
   align-items: center;
-  gap: 10px;
-  font-size: 20px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
+  gap: var(--space-3);
 }
 
 .mark {
-  color: var(--accent);
-  font-size: 18px;
+  display: inline-flex;
+  align-items: center;
+  color: var(--tint);
+}
+
+/* Large Title treatment (§1). */
+.title {
+  margin: 0;
+  font: var(--weight-bold) var(--text-large-title) / var(--leading-large-title)
+    var(--font-system);
+  letter-spacing: var(--track-large-title);
+  color: var(--label);
 }
 
 .tagline {
   margin: 0;
-  color: var(--ink-soft);
+  color: var(--label-2);
   max-width: 62ch;
+  font: var(--weight-regular) var(--text-subhead) / var(--leading-subhead)
+    var(--font-system);
+  letter-spacing: var(--track-subhead);
 }
 
 .uploadSection {
-  margin-top: 4px;
+  margin-top: var(--space-1);
 }
 
+/* Loading state — iOS-style spinner + Footnote label. role="status" preserved. */
 .status {
   display: flex;
   align-items: center;
-  gap: 10px;
-  color: var(--ink-soft);
-  font-weight: 500;
+  gap: var(--space-3);
+  color: var(--label-2);
+  font: var(--weight-regular) var(--text-footnote) / var(--leading-footnote)
+    var(--font-system);
+  letter-spacing: var(--track-footnote);
+  padding: var(--space-2) 0;
 }
 
 .spinner {
-  width: 16px;
-  height: 16px;
-  border: 2px solid var(--line);
-  border-top-color: var(--accent);
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
-  animation: spin 0.7s linear infinite;
+  background: conic-gradient(
+    from 90deg,
+    color-mix(in srgb, var(--label-2) 10%, transparent),
+    var(--label-2)
+  );
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2.5px), #000 0);
+  mask: radial-gradient(farthest-side, transparent calc(100% - 2.5px), #000 0);
+  animation: spin 0.8s linear infinite;
 }
 
 @keyframes spin {
@@ -60,19 +79,29 @@
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-duration: 1.6s;
+  }
+}
+
+/* Error state — red tinted banner. role="alert" preserved. */
 .errorBanner {
-  background: var(--red-bg);
-  color: var(--red);
-  border: 1px solid color-mix(in srgb, var(--red) 25%, transparent);
-  border-radius: 8px;
-  padding: 10px 14px;
-  font-size: 14px;
+  background: color-mix(in srgb, var(--system-red) 12%, transparent);
+  color: color-mix(in srgb, var(--system-red) 72%, var(--label));
+  border: 0.5px solid color-mix(in srgb, var(--system-red) 30%, transparent);
+  border-radius: var(--radius-control);
+  padding: var(--space-3) var(--space-4);
+  font: var(--weight-medium) var(--text-subhead) / var(--leading-subhead)
+    var(--font-system);
+  letter-spacing: var(--track-subhead);
 }
 
 .footer {
-  margin-top: 12px;
-  color: var(--ink-soft);
-  font-size: 12px;
-  border-top: 1px solid var(--line);
-  padding-top: 16px;
+  margin-top: var(--space-3);
+  color: var(--label-3);
+  font: var(--weight-regular) var(--text-caption1) / var(--leading-caption1)
+    var(--font-system);
+  border-top: 0.5px solid var(--separator);
+  padding-top: var(--space-4);
 }

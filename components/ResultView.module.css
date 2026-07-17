@@ -1,7 +1,7 @@
 .layout {
   display: grid;
   grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
-  gap: 20px;
+  gap: var(--space-5);
   align-items: start;
 }
 
@@ -11,13 +11,13 @@
   }
 }
 
+/* Document preview — opaque content card, sticky. */
 .previewCol {
   position: sticky;
-  top: 16px;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
+  top: var(--space-4);
+  background: var(--bg-grouped-2);
+  border-radius: var(--radius-card);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
   overflow: hidden;
 }
 
@@ -26,7 +26,7 @@
   width: 100%;
   height: 640px;
   border: 0;
-  background: #f0f1f4;
+  background: var(--bg-2);
   object-fit: contain;
 }
 
@@ -39,174 +39,217 @@
   }
 }
 
+/* Editable extraction — opaque content card. */
 .dataCol {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  padding: 16px 18px 20px;
+  background: var(--bg-grouped-2);
+  border-radius: var(--radius-card);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  padding: var(--space-5);
 }
 
 .toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
 }
 
 .reviewNote {
-  font-size: 13px;
+  font: var(--weight-regular) var(--text-subhead) / var(--leading-subhead)
+    var(--font-system);
+  letter-spacing: var(--track-subhead);
 }
 
 .reviewClear {
-  color: var(--green);
-  font-weight: 600;
+  color: color-mix(in srgb, var(--system-green) 78%, var(--label));
+  font-weight: var(--weight-semibold);
 }
 
 .reviewFlag {
-  color: var(--amber);
-  font-weight: 600;
+  color: color-mix(in srgb, var(--system-orange) 78%, var(--label));
+  font-weight: var(--weight-semibold);
 }
 
+/* Filled tint pill provided by .btn.btn-filled; icon gap only. */
 .export {
-  border: 1px solid var(--accent);
-  background: var(--accent);
-  color: var(--accent-ink);
-  border-radius: 8px;
-  padding: 8px 16px;
-  font-weight: 600;
-  cursor: pointer;
+  flex: none;
 }
 
-.export:hover {
-  background: color-mix(in srgb, var(--accent) 88%, #000);
-}
-
+/* Document-level flag — red tinted banner. */
 .docFlag {
-  background: var(--red-bg);
-  color: var(--red);
-  border: 1px solid color-mix(in srgb, var(--red) 25%, transparent);
-  border-radius: 8px;
-  padding: 8px 12px;
-  font-size: 13px;
-  margin-bottom: 12px;
+  background: color-mix(in srgb, var(--system-red) 12%, transparent);
+  color: color-mix(in srgb, var(--system-red) 72%, var(--label));
+  border: 0.5px solid color-mix(in srgb, var(--system-red) 30%, transparent);
+  border-radius: var(--radius-control);
+  padding: var(--space-3) var(--space-4);
+  font: var(--weight-regular) var(--text-subhead) / var(--leading-subhead)
+    var(--font-system);
+  letter-spacing: var(--track-subhead);
+  margin-bottom: var(--space-4);
 }
 
+/* Header fields — grouped inset list of editable rows. */
 .table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: var(--bg-grouped);
+  border-radius: var(--radius-card);
+  overflow: hidden;
 }
 
-.table tr {
-  border-bottom: 1px solid var(--line);
+.table tr:not(:last-child) th,
+.table tr:not(:last-child) td {
+  border-bottom: 0.5px solid var(--separator);
 }
 
 .rowFlagged {
-  background: color-mix(in srgb, var(--amber) 5%, transparent);
+  background: color-mix(in srgb, var(--system-orange) 8%, transparent);
 }
 
 .fieldLabel {
   text-align: left;
-  font-weight: 500;
-  color: var(--ink-soft);
-  padding: 8px 10px 8px 0;
+  font: var(--weight-regular) var(--text-body) / var(--leading-body)
+    var(--font-system);
+  letter-spacing: var(--track-body);
+  color: var(--label-2);
+  padding: var(--space-2) var(--space-3);
   white-space: nowrap;
-  width: 120px;
+  width: 130px;
   vertical-align: middle;
 }
 
 .fieldInput {
-  padding: 6px 8px 6px 0;
+  padding: var(--space-2) var(--space-2) var(--space-2) 0;
   vertical-align: middle;
 }
 
 .fieldBadge {
-  padding: 6px 0;
+  padding: var(--space-2) var(--space-3) var(--space-2) 0;
   text-align: right;
   vertical-align: middle;
-  width: 88px;
+  width: 92px;
 }
 
+/* Editable field — grouped fill, tint focus ring. */
 .input {
   width: 100%;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 6px 8px;
-  font: inherit;
-  color: var(--ink);
-  background: #fff;
+  border: 0.5px solid transparent;
+  border-radius: var(--radius-control);
+  padding: var(--space-2) var(--space-3);
+  font: var(--weight-regular) var(--text-body) / 1.2 var(--font-system);
+  letter-spacing: var(--track-body);
+  color: var(--label);
+  background: var(--fill-3);
+  transition: box-shadow var(--dur-fast) var(--spring);
+}
+
+.input::placeholder {
+  color: var(--placeholder);
 }
 
 .input:focus {
   outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 20%, transparent);
+  border-color: transparent;
+  box-shadow: 0 0 0 4px var(--focus-ring);
 }
 
 .lineHeading {
-  margin: 20px 0 8px;
-  font-size: 14px;
-  color: var(--ink-soft);
+  margin: var(--space-5) 0 var(--space-3);
+  font: var(--weight-semibold) var(--text-subhead) / var(--leading-subhead)
+    var(--font-system);
+  letter-spacing: var(--track-subhead);
+  color: var(--label);
 }
 
 .lineTable {
   width: 100%;
   border-collapse: collapse;
-  font-size: 14px;
 }
 
 .lineTable thead th {
   text-align: left;
-  font-weight: 500;
-  color: var(--ink-soft);
-  font-size: 12px;
-  padding: 4px 6px;
-  border-bottom: 1px solid var(--line);
+  font: var(--weight-regular) var(--text-caption1) / var(--leading-caption1)
+    var(--font-system);
+  color: var(--label-2);
+  padding: var(--space-1) var(--space-2);
+  border-bottom: 0.5px solid var(--separator);
 }
 
 .lineTable td {
-  padding: 4px 6px;
+  padding: var(--space-1) var(--space-2);
   vertical-align: middle;
 }
 
 .num {
   text-align: right;
-  width: 88px;
+  width: 92px;
 }
 
 .numInput {
   text-align: right;
 }
 
+/* Circular glass remove control. */
 .removeBtn {
-  border: 1px solid var(--line);
-  background: #fff;
-  color: var(--ink-soft);
-  border-radius: 6px;
-  width: 26px;
-  height: 26px;
-  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0.5px solid var(--separator);
+  background: var(--fill-3);
+  color: var(--label-2);
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
   cursor: pointer;
+  transition: transform var(--dur-fast) var(--spring),
+    color var(--dur-fast) var(--spring), background var(--dur-fast) var(--spring);
 }
 
 .removeBtn:hover {
-  border-color: var(--red);
-  color: var(--red);
+  color: var(--system-red);
+  background: color-mix(in srgb, var(--system-red) 12%, transparent);
+  border-color: color-mix(in srgb, var(--system-red) 30%, transparent);
 }
 
+.removeBtn:active {
+  transform: scale(0.94);
+}
+
+.removeBtn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 4px var(--focus-ring);
+}
+
+/* Add line item — plain tint pill affordance. */
 .addBtn {
-  margin-top: 10px;
-  border: 1px dashed var(--line);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-top: var(--space-3);
+  min-height: var(--hit);
+  border: none;
   background: transparent;
-  color: var(--accent);
-  border-radius: 8px;
-  padding: 7px 12px;
-  font-weight: 500;
+  color: var(--tint);
+  border-radius: var(--radius-capsule);
+  padding: 0 var(--space-3);
+  font: var(--weight-semibold) var(--text-subhead) / 1 var(--font-system);
+  letter-spacing: var(--track-subhead);
   cursor: pointer;
+  transition: transform var(--dur-fast) var(--spring),
+    background var(--dur-fast) var(--spring);
 }
 
 .addBtn:hover {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  background: color-mix(in srgb, var(--tint) 12%, transparent);
+}
+
+.addBtn:active {
+  transform: scale(0.97);
+}
+
+.addBtn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 4px var(--focus-ring);
 }

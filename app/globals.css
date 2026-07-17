@@ -1,21 +1,9 @@
+/* App-level styling built ON ios26.css tokens/primitives (imported first).
+   The only token override is the per-app accent. Light + dark come for free
+   from ios26.css because everything here references tokens, never raw hex. */
+
 :root {
-  --bg: #f5f6f8;
-  --panel: #ffffff;
-  --ink: #1a1f2b;
-  --ink-soft: #5a6473;
-  --line: #e2e5ea;
-  --accent: #1f6feb;
-  --accent-ink: #ffffff;
-
-  --green: #1f9d55;
-  --green-bg: #e7f6ee;
-  --amber: #b7791f;
-  --amber-bg: #fbf3e0;
-  --red: #c0392b;
-  --red-bg: #fbe9e7;
-
-  --radius: 10px;
-  --shadow: 0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.1);
+  --tint: var(--system-teal);
 }
 
 * {
@@ -26,17 +14,18 @@ html,
 body {
   margin: 0;
   padding: 0;
-  background: var(--bg);
-  color: var(--ink);
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
-    Helvetica, Arial, sans-serif;
-  font-size: 15px;
-  line-height: 1.5;
+  /* Grouped background hierarchy (swaps light/dark via ios26.css tokens). */
+  background: var(--bg-grouped);
+  color: var(--label);
+  font: var(--weight-regular) var(--text-body) / var(--leading-body)
+    var(--font-system);
+  letter-spacing: var(--track-body);
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 a {
-  color: var(--accent);
+  color: var(--tint);
 }
 
 button {

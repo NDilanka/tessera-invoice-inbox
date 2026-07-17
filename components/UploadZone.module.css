@@ -1,32 +1,45 @@
 .wrap {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
+/* Large rounded upload card (opaque content surface, not glass). */
 .drop {
-  border: 2px dashed var(--line);
-  border-radius: var(--radius);
-  background: var(--panel);
-  padding: 40px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  border: 1.5px dashed var(--separator);
+  border-radius: var(--radius-card);
+  background: var(--bg-grouped-2);
+  padding: var(--space-8) var(--space-6);
   text-align: center;
   cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  transition: border-color var(--dur) var(--spring),
+    background var(--dur) var(--spring);
 }
 
 .drop:hover,
 .drop:focus-visible {
-  border-color: var(--accent);
+  border-color: var(--tint);
   outline: none;
 }
 
+.drop:focus-visible {
+  box-shadow: 0 0 0 4px var(--focus-ring);
+}
+
+/* Drag-over — brightens the tint wash. */
 .dragging {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 6%, var(--panel));
+  border-color: var(--tint);
+  border-style: solid;
+  background: color-mix(in srgb, var(--tint) 12%, var(--bg-grouped-2));
 }
 
 .disabled {
-  opacity: 0.55;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
@@ -35,63 +48,95 @@
 }
 
 .icon {
-  font-size: 26px;
-  color: var(--accent);
-  margin-bottom: 8px;
+  display: inline-flex;
+  color: var(--tint);
+  margin-bottom: var(--space-1);
 }
 
 .headline {
-  margin: 0 0 4px;
-  font-weight: 600;
-}
-
-.link {
-  color: var(--accent);
-  text-decoration: underline;
+  margin: 0;
+  font: var(--weight-semibold) var(--text-headline) / var(--leading-headline)
+    var(--font-system);
+  letter-spacing: var(--track-headline);
+  color: var(--label);
 }
 
 .hint {
-  margin: 0;
-  color: var(--ink-soft);
-  font-size: 13px;
+  margin: 0 0 var(--space-2);
+  color: var(--label-2);
+  font: var(--weight-regular) var(--text-footnote) / var(--leading-footnote)
+    var(--font-system);
+  letter-spacing: var(--track-footnote);
+}
+
+/* Visual filled pill; the whole card is the actual click/keyboard target. */
+.browseBtn {
+  pointer-events: none;
 }
 
 .samples {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-3);
 }
 
 .samplesLabel {
-  color: var(--ink-soft);
-  font-size: 13px;
+  color: var(--label-2);
+  font: var(--weight-regular) var(--text-footnote) / var(--leading-footnote)
+    var(--font-system);
+  letter-spacing: var(--track-footnote);
 }
 
 .chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
+/* Sample chips — glass pills (chrome affordance). */
 .chip {
-  border: 1px solid var(--line);
-  background: var(--panel);
-  color: var(--ink);
-  border-radius: 999px;
-  padding: 6px 14px;
-  font-size: 13px;
-  font-weight: 500;
+  min-height: 34px;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-capsule);
+  background: rgb(var(--glass-surface) / var(--glass-opacity));
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  border: 0.5px solid var(--glass-border);
+  box-shadow: inset 0 0.5px 0 var(--glass-specular);
+  color: var(--label);
+  font: var(--weight-medium) var(--text-subhead) / 1 var(--font-system);
+  letter-spacing: var(--track-subhead);
   cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease;
+  transition: transform var(--dur-fast) var(--spring),
+    filter var(--dur-fast) var(--spring);
 }
 
-.chip:hover:not(:disabled) {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 6%, var(--panel));
+@supports not (
+  (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))
+) {
+  .chip {
+    background: var(--fill);
+  }
+}
+
+:global(.reduce-transparency) .chip {
+  background: var(--fill);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.chip:active:not(:disabled) {
+  transform: scale(0.97);
+  filter: brightness(1.08);
+}
+
+.chip:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0.5px 0 var(--glass-specular), 0 0 0 4px var(--focus-ring);
 }
 
 .chip:disabled {
-  opacity: 0.55;
+  opacity: 0.4;
   cursor: not-allowed;
 }

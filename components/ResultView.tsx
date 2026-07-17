@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import { Download, Plus, X } from "lucide-react";
 import ConfidenceBadge from "./ConfidenceBadge";
 import { buildResult } from "@/lib/review";
 import { invoiceToCsv, csvFilename } from "@/lib/csv";
@@ -157,7 +158,12 @@ export default function ResultView({ result, previewUrl, media }: Props) {
               </span>
             )}
           </div>
-          <button type="button" className={styles.export} onClick={exportCsv}>
+          <button
+            type="button"
+            className={`btn btn-filled btn-sm ${styles.export}`}
+            onClick={exportCsv}
+          >
+            <Download size={16} strokeWidth={2} aria-hidden="true" />
             Export CSV
           </button>
         </div>
@@ -252,7 +258,7 @@ export default function ResultView({ result, previewUrl, media }: Props) {
                     onClick={() => removeLineItem(i)}
                     aria-label={`Remove line item ${i + 1}`}
                   >
-                    ×
+                    <X size={16} strokeWidth={2} aria-hidden="true" />
                   </button>
                 </td>
               </tr>
@@ -260,7 +266,8 @@ export default function ResultView({ result, previewUrl, media }: Props) {
           </tbody>
         </table>
         <button type="button" className={styles.addBtn} onClick={addLineItem}>
-          + Add line item
+          <Plus size={16} strokeWidth={2} aria-hidden="true" />
+          Add line item
         </button>
       </section>
     </div>

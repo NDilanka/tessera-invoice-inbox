@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { Upload } from "lucide-react";
 import { SAMPLES, type SampleDoc } from "@/lib/samples";
 import { MAX_FILE_BYTES } from "@/lib/config";
 import styles from "./UploadZone.module.css";
@@ -60,12 +61,13 @@ export default function UploadZone({ onFile, onSample, disabled }: Props) {
           disabled={disabled}
         />
         <div className={styles.icon} aria-hidden="true">
-          ⬆
+          <Upload size={30} strokeWidth={1.8} />
         </div>
-        <p className={styles.headline}>
-          Drag an invoice here, or <span className={styles.link}>browse</span>
-        </p>
+        <p className={styles.headline}>Drag an invoice or receipt here</p>
         <p className={styles.hint}>PDF, JPG, or PNG · up to {MB} MB · max 5 pages</p>
+        <span className={`btn btn-filled ${styles.browseBtn}`} aria-hidden="true">
+          Browse files
+        </span>
       </div>
 
       <div className={styles.samples}>
