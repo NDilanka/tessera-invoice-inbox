@@ -10,7 +10,7 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import {
-  EXTRACTION_MODEL,
+  extractionModel,
   MAX_OUTPUT_TOKENS,
   resolveAnthropicClientOptions,
 } from "@/lib/config";
@@ -187,7 +187,7 @@ export async function extractInvoice(
   // If the static prefix ever grows past ~4K tokens, add cache_control to the
   // last tool definition (tools render before system, so it covers both).
   const response = await client.messages.create({
-    model: EXTRACTION_MODEL,
+    model: extractionModel(),
     max_tokens: MAX_OUTPUT_TOKENS,
     system: SYSTEM_PROMPT,
     tools: [

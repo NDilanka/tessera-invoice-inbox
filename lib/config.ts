@@ -25,8 +25,14 @@
  * model addressed the OpenRouter way at eval time (`anthropic/claude-haiku-4.5`)
  * without a code change. Defaults to the native Anthropic alias — production is
  * unaffected. See the OpenRouter routing block below and DECISIONS.md.
+ *
+ * Read at call time, not module load: the eval script imports this module before
+ * it runs loadEnvConfig(), so a module-level const would freeze the default and
+ * ignore `.env.local` (the key checks below are call-time for the same reason).
  */
-export const EXTRACTION_MODEL = process.env.EXTRACTION_MODEL ?? "claude-haiku-4-5";
+export function extractionModel(): string {
+  return process.env.EXTRACTION_MODEL ?? "claude-haiku-4-5";
+}
 
 /** Hard cap on output tokens for one extraction. A structured invoice fits easily. */
 export const MAX_OUTPUT_TOKENS = 4096;
