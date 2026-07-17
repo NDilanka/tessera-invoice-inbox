@@ -149,6 +149,22 @@ native SDK through OpenRouter (see [Provider routing](#provider-routing-native-a
 Without a key it prints a friendly message and exits 1 (it is designed to fail
 gracefully, not to pass without a key).
 
+**Measured results** (30 SROIE receipts, `claude-haiku-4.5`, 2026-07-17):
+
+| Field | Exact-match accuracy |
+|---|---|
+| total | **93.3%** (28/30) |
+| company | 70.0% (21/30) |
+| date | 70.0% (21/30) |
+| **overall** | **77.8%** (70/90) — gate ≥75% ✅ |
+
+Measured through OpenRouter's Anthropic-Messages endpoint — the same native-SDK
+strict-tool-use request as production, and the score matches the direct-Anthropic
+measurement exactly, which is the point of the provider-agnostic design
+(DECISIONS.md #8). Scores are strict *exact-match after normalization*: most
+company/date misses are OCR-adjacent near-misses on low-quality scans, while the
+field that drives money decisions (`total`) reads at 93%.
+
 **Provenance:** the eval images + ground truth in `data/eval/` come from the
 HuggingFace mirror `jsdnrs/ICDAR2019-SROIE` (CC-BY-4.0), which originates from the
 ICDAR 2019 Robust Reading Challenge on Scanned Receipts OCR and Information
