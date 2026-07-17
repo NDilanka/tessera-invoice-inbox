@@ -76,3 +76,95 @@ real users nothing while bounding token spend and latency; (c) validating type/s
 count at the boundary means a bad upload is a fast, friendly `413/415/422`, never a
 half-processed request that burned an API call. The page count is checked with `pdf-lib`
 before the document ever reaches the model.
+
+## 6. Env-gated OpenRouter fallback for running the eval
+
+> **Superseded by #8.** The premise below ("no Anthropic-native endpoint") stopped
+> being true: OpenRouter now exposes an Anthropic-Messages-compatible endpoint,
+> so the separate OpenAI-compat call path was removed. Kept for the record.
+
+Production talks to the **native Anthropic API** (decision #1), which needs `ANTHROPIC_API_KEY`.
+To let the SROIE eval run against a funded **OpenRouter** account instead, there's an
+env-gated fallback centralized in `lib/config.ts` (`resolveExtractionProvider`):
+
+- `ANTHROPIC_API_KEY` set → direct Anthropic — **the production default, unchanged.**
+- else `OPENROUTER_API_KEY` set → OpenRouter serving the **same model** (`anthropic/claude-haiku-4.5`, i.e. the same `claude-haiku-4-5` Anthropic serves).
+- else → a friendly missing-key error.
+
+Anthropic always wins when both are present, so nothing about the production path changes.
+
+**Why the fallback isn't just a base-URL swap.** OpenRouter's docs
+(https://openrouter.ai/docs) expose only an OpenAI-compatible
+`/api/v1/chat/completions` route — there is **no** Anthropic-native `/v1/messages`
+endpoint, so we can't simply point `@anthropic-ai/sdk` at an OpenRouter base URL
+and reuse the native tool-use call. The fallback therefore lives only in the
+extraction call path (`lib/extract.ts` → `callOpenRouter`), issuing the
+OpenAI-compatible request directly. The existing strict tool schema is passed
+through as an OpenAI `function` tool — that format accepts JSON Schema, so the
+`anyOf`-nullable pattern for optional fields is preserved verbatim.
+
+**Honest pipeline-mechanics differences to keep in mind when reading eval numbers:**
+
+- **Image-only on the fallback.** The eval is image-based (SROIE `.jpg`), so
+  `callOpenRouter` handles images (`image_url` data-URI) and deliberately refuses
+  PDFs; native Anthropic keeps its first-class `document` block for PDFs in
+  production. The eval exercises the same model either way.
+- **Strict-mode enforcement.** On native Anthropic, `strict: true` is enforced by
+  the API. Through OpenRouter, strictness depends on the upstream provider's
+  handling of the OpenAI `strict` flag; either way we re-validate the tool output
+  with the same Zod schema, so a malformed response fails at our boundary rather
+  than reaching the UI.
+
+Bottom line: eval metrics may be **measured via OpenRouter serving the same
+`claude-haiku-4.5`**; the production default remains the native Anthropic API.
+
+## 7. The extraction eval stays Anthropic-gated (no Gemini free-tier path)
+
+The sibling ops-agent added a Gemini free-tier path so its tool-choice eval runs
+at $0. We deliberately do **not** mirror that here.
+
+**Decision.** The extraction eval remains gated on Anthropic (native
+`ANTHROPIC_API_KEY`), with OpenRouter as the only fallback. Deploy waits for an
+Anthropic key rather than green-lighting a free Gemini run.
+
+**Why.**
+
+- **Base64 image input through a Gemini OpenAI-compat layer is unverified.** This
+  eval is image-based (SROIE `.jpg` → data-URI). Gemini's OpenAI-compatibility
+  endpoint has known quirks around multimodal `image_url` payloads, and we have
+  not confirmed it round-trips base64 images into the strict tool call cleanly.
+  Publishing eval numbers off an unverified input path would be dishonest.
+- **Native Anthropic strict tool-use is this repo's differentiator.** The whole
+  point here is API-enforced `strict: true` structured extraction (decision #1).
+  Measuring the eval through a compat shim that only best-effort honours the
+  `strict` flag would undercut the exact property we are trying to demonstrate.
+- **The OpenRouter fallback is an escape hatch, not a substitute.** It exists
+  (decision #6) only so the eval *can* run without a direct Anthropic key; it is
+  not a green light to characterize the model on a non-native path. When both
+  keys are absent the eval simply refuses rather than silently degrading.
+
+Bottom line: the differentiator is native Anthropic strict tool-use, so the eval
+stays Anthropic-gated; OpenRouter remains an env-gated escape hatch and deploy
+waits for an Anthropic key.
+
+## 8. OpenRouter via the native SDK (Anthropic Skin) — supersedes #6
+
+OpenRouter now exposes an **Anthropic-Messages-compatible endpoint** (its
+"Anthropic Skin", base URL `https://openrouter.ai/api`), which the official
+`@anthropic-ai/sdk` can target directly:
+
+```ts
+new Anthropic({ baseURL: "https://openrouter.ai/api", authToken: OPENROUTER_API_KEY })
+```
+
+That dissolves decision #6's entire tradeoff. There is now **one** call path —
+the native SDK with API-enforced `strict: true` tool-use — and the provider is
+just a client-construction detail (`resolveAnthropicClientOptions()` in
+`lib/config.ts`). The separate OpenAI-compat `callOpenRouter` path, its
+image-only restriction, and its best-effort strictness caveat are all deleted.
+`ANTHROPIC_API_KEY` still wins when both keys are set, so production is
+unchanged. The model id differs per provider (`claude-haiku-4-5` natively,
+`anthropic/claude-haiku-4.5` on OpenRouter) — set via `EXTRACTION_MODEL`, read
+at call time. Decision #7's honesty concerns no longer apply to the OpenRouter
+route: it exercises the identical native request. Verified empirically: the
+SROIE eval runs through the Skin with strict tool-use intact.

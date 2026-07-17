@@ -138,6 +138,10 @@ const SYSTEM_PROMPT =
   "absent from the document, use null (never a made-up value). Report an honest " +
   "per-field confidence.";
 
+const TOOL_DESCRIPTION =
+  "Record the structured contents of one invoice or receipt.";
+const USER_INSTRUCTION = "Extract this document into the record_invoice tool.";
+
 let cachedClient: Anthropic | null = null;
 function getClient(): Anthropic {
   // Provider-agnostic construction: `{}` for native Anthropic (the SDK reads
@@ -167,16 +171,16 @@ function documentBlock(
 }
 
 /**
- * Call the model and return the validated structured output plus the derived
- * review signals. Throws MissingApiKeyError if no key is configured, and lets
- * the SDK's typed errors (rate limit, etc.) propagate to the caller.
+ * The single model path: NATIVE Anthropic Messages API with strict tool-use.
+ * getClient() decides whether it talks to Anthropic directly or to OpenRouter's
+ * Anthropic Skin — the request below is identical either way. Returns the raw
+ * tool-call input for the caller to validate.
  */
-export async function extractInvoice(
-  bytes: Buffer,
+async function callAnthropic(
+  base64: string,
   media: SupportedMedia,
-): Promise<ExtractionResult> {
+): Promise<unknown> {
   const client = getClient();
-  const base64 = bytes.toString("base64");
 
   // Prompt caching intentionally NOT applied. Caching is a prefix match with a
   // per-model minimum cacheable prefix; on Haiku 4.5 that minimum is 4096 tokens.
@@ -193,7 +197,7 @@ export async function extractInvoice(
     tools: [
       {
         name: TOOL_NAME,
-        description: "Record the structured contents of one invoice or receipt.",
+        description: TOOL_DESCRIPTION,
         // strict: true makes the API enforce INPUT_SCHEMA exactly.
         strict: true,
         input_schema: INPUT_SCHEMA as unknown as Anthropic.Tool.InputSchema,
@@ -205,10 +209,7 @@ export async function extractInvoice(
         role: "user",
         content: [
           documentBlock(base64, media),
-          {
-            type: "text",
-            text: "Extract this document into the record_invoice tool.",
-          },
+          { type: "text", text: USER_INSTRUCTION },
         ],
       },
     ],
@@ -226,10 +227,25 @@ export async function extractInvoice(
   if (!toolUse) {
     throw new Error("Model did not return a tool call for extraction.");
   }
+  return toolUse.input;
+}
 
-  // Enforced by strict:true, but we re-validate so a bad response fails loudly
-  // here rather than corrupting the UI downstream.
-  const { invoice, fieldConfidence } = ModelOutputSchema.parse(toolUse.input);
+/**
+ * Call the model and return the validated structured output plus the derived
+ * review signals. The provider (direct Anthropic vs OpenRouter's Anthropic
+ * Skin) is resolved inside getClient() — see resolveAnthropicClientOptions.
+ * Throws MissingApiKeyError if no provider is configured.
+ */
+export async function extractInvoice(
+  bytes: Buffer,
+  media: SupportedMedia,
+): Promise<ExtractionResult> {
+  const base64 = bytes.toString("base64");
+  const rawInput = await callAnthropic(base64, media);
+
+  // Enforced by strict tool use, but we re-validate so a bad response fails
+  // loudly here rather than corrupting the UI downstream.
+  const { invoice, fieldConfidence } = ModelOutputSchema.parse(rawInput);
 
   return buildResult(invoice, fieldConfidence);
 }
