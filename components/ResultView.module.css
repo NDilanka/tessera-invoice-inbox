@@ -62,12 +62,12 @@
 }
 
 .reviewClear {
-  color: color-mix(in srgb, var(--system-green) 78%, var(--label));
+  color: color-mix(in srgb, var(--system-green) 60%, var(--label));
   font-weight: var(--weight-semibold);
 }
 
 .reviewFlag {
-  color: color-mix(in srgb, var(--system-orange) 78%, var(--label));
+  color: color-mix(in srgb, var(--system-orange) 60%, var(--label));
   font-weight: var(--weight-semibold);
 }
 
@@ -79,7 +79,7 @@
 /* Document-level flag — red tinted banner. */
 .docFlag {
   background: color-mix(in srgb, var(--system-red) 12%, transparent);
-  color: color-mix(in srgb, var(--system-red) 72%, var(--label));
+  color: color-mix(in srgb, var(--system-red) 60%, var(--label));
   border: 0.5px solid color-mix(in srgb, var(--system-red) 30%, transparent);
   border-radius: var(--radius-control);
   padding: var(--space-3) var(--space-4);

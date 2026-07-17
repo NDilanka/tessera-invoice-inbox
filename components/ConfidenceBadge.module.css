@@ -9,7 +9,7 @@
   letter-spacing: var(--track-footnote);
   white-space: nowrap;
   --badge-color: var(--system-gray);
-  color: color-mix(in srgb, var(--badge-color) 72%, var(--label));
+  color: color-mix(in srgb, var(--badge-color) 60%, var(--label));
   background: color-mix(in srgb, var(--badge-color) 15%, transparent);
 }
 
