@@ -124,13 +124,17 @@ export default function Home() {
 
   return (
     <main className={styles.page}>
-      <header className={styles.header}>
-        <div className={styles.brand}>
+      <div className={styles.navRow}>
+        <div className={`nav-glass ${styles.nav}`}>
           <span className={styles.mark} aria-hidden="true">
-            <Inbox size={28} strokeWidth={1.8} />
+            <Inbox size={20} strokeWidth={1.8} />
           </span>
-          <h1 className={styles.title}>Tessera Invoice Inbox</h1>
+          <span className={styles.wordmark}>Tessera</span>
         </div>
+      </div>
+
+      <header className={styles.header}>
+        <h1 className={styles.title}>Invoice Inbox</h1>
         <p className={styles.tagline}>
           Drop an invoice or receipt → structured JSON with per-field confidence →
           review and export. Extraction runs on the native Anthropic API.

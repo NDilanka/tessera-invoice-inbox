@@ -7,16 +7,28 @@
   gap: var(--space-5);
 }
 
+/* Floating Liquid Glass chrome capsule (the only glass in the header). */
+.navRow {
+  display: flex;
+  position: sticky;
+  top: var(--space-3);
+  z-index: 10;
+}
+
+.nav {
+  padding: var(--space-2) var(--space-4) var(--space-2) var(--space-3);
+}
+
+.wordmark {
+  font: var(--weight-semibold) var(--text-headline) / 1 var(--font-system);
+  letter-spacing: var(--track-headline);
+  color: var(--label);
+}
+
 .header {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-}
-
-.brand {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
 }
 
 .mark {

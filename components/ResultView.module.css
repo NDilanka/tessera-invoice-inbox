@@ -231,7 +231,8 @@
   min-height: var(--hit);
   border: none;
   background: transparent;
-  color: var(--tint);
+  /* Teal-on-white fails contrast at full strength; mix toward label. */
+  color: color-mix(in srgb, var(--tint) 70%, var(--label));
   border-radius: var(--radius-capsule);
   padding: 0 var(--space-3);
   font: var(--weight-semibold) var(--text-subhead) / 1 var(--font-system);

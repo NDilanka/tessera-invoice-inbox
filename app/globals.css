@@ -4,6 +4,9 @@
 
 :root {
   --tint: var(--system-teal);
+  /* Teal is a light accent — use a dark label on filled-tint surfaces
+     (Apple does the same on yellow) so white-on-teal never fails contrast. */
+  --tint-contrast: rgba(0, 0, 0, 0.88);
 }
 
 * {
