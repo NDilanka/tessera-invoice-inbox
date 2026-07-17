@@ -71,7 +71,33 @@ Extraction uses **Claude Haiku 4.5** (`claude-haiku-4-5`) — the cheapest curre
 Claude tier ($1 / $5 per million input / output tokens) that supports **both** PDF
 document input and image/vision input. Document extraction is a bounded, low-reasoning
 task, so the fastest/cheapest capable model is the right call. Swapping models is a
-one-line change in [`lib/config.ts`](lib/config.ts).
+one-line change in [`lib/config.ts`](lib/config.ts), or set `EXTRACTION_MODEL` in the
+environment to override without a code change.
+
+### Provider routing (native Anthropic, or OpenRouter)
+
+The client construction is provider-agnostic — it's the **same native
+`@anthropic-ai/sdk`** either way; only the base URL and auth differ:
+
+- **`ANTHROPIC_API_KEY` set** → direct Anthropic (production default; unchanged).
+- **else `OPENROUTER_API_KEY` set** → the SDK targets OpenRouter's
+  Anthropic-Messages-compatible endpoint (its "Anthropic Skin") at
+  `https://openrouter.ai/api` with Bearer auth (`authToken`). The same
+  `messages.create` + strict-tool-use path serves both.
+
+Anthropic wins when both are set, so production is never affected. When routing
+through OpenRouter, the model id must be addressed the OpenRouter way — set
+`EXTRACTION_MODEL=anthropic/claude-haiku-4.5` (OpenRouter's id for the same model;
+the native alias is `claude-haiku-4-5`). Env vars, all in `.env.local`:
+
+```
+# Native Anthropic (production default)
+ANTHROPIC_API_KEY=sk-ant-...
+
+# OR route the same native SDK through OpenRouter (e.g. for the eval)
+OPENROUTER_API_KEY=sk-or-...
+EXTRACTION_MODEL=anthropic/claude-haiku-4.5
+```
 
 ### Sample documents
 
@@ -117,9 +143,11 @@ normalization:
 - `total → total` (currency symbols / separators stripped, numeric compare)
 
 It prints a per-doc table plus per-field and overall accuracy, and **exits 1 below
-75% overall**. It needs `ANTHROPIC_API_KEY` at runtime; without a key it prints a
-friendly message and exits 1 (it is designed to fail gracefully, not to pass without a
-key).
+75% overall**. It needs a provider key at runtime — `ANTHROPIC_API_KEY`, or
+`OPENROUTER_API_KEY` (+ `EXTRACTION_MODEL=anthropic/claude-haiku-4.5`) to run the same
+native SDK through OpenRouter (see [Provider routing](#provider-routing-native-anthropic-or-openrouter)).
+Without a key it prints a friendly message and exits 1 (it is designed to fail
+gracefully, not to pass without a key).
 
 **Provenance:** the eval images + ground truth in `data/eval/` come from the
 HuggingFace mirror `jsdnrs/ICDAR2019-SROIE` (CC-BY-4.0), which originates from the

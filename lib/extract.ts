@@ -9,14 +9,24 @@
 // Each field's displayed status is the WORST of the two.
 
 import Anthropic from "@anthropic-ai/sdk";
-import { EXTRACTION_MODEL, MAX_OUTPUT_TOKENS } from "@/lib/config";
+import {
+  EXTRACTION_MODEL,
+  MAX_OUTPUT_TOKENS,
+  resolveAnthropicClientOptions,
+} from "@/lib/config";
 import { ModelOutputSchema, CONFIDENCE_FIELDS, type ExtractionResult } from "@/lib/schema";
 import { buildResult } from "@/lib/review";
 
-/** Thrown when the API key is missing — the caller turns this into a friendly 503. */
+/**
+ * Thrown when no extraction provider is configured — the caller turns this into
+ * a friendly 503. Production expects `ANTHROPIC_API_KEY`; the eval path can also
+ * route the same native SDK through OpenRouter with `OPENROUTER_API_KEY`.
+ */
 export class MissingApiKeyError extends Error {
   constructor() {
-    super("ANTHROPIC_API_KEY is not set");
+    super(
+      "No extraction provider configured (set ANTHROPIC_API_KEY, or OPENROUTER_API_KEY to route the native SDK through OpenRouter)",
+    );
     this.name = "MissingApiKeyError";
   }
 }
@@ -130,8 +140,13 @@ const SYSTEM_PROMPT =
 
 let cachedClient: Anthropic | null = null;
 function getClient(): Anthropic {
-  if (!process.env.ANTHROPIC_API_KEY) throw new MissingApiKeyError();
-  if (!cachedClient) cachedClient = new Anthropic();
+  // Provider-agnostic construction: `{}` for native Anthropic (the SDK reads
+  // ANTHROPIC_API_KEY itself), or base URL + Bearer authToken for OpenRouter's
+  // Anthropic Skin. Either way it's the SAME native @anthropic-ai/sdk and the
+  // SAME messages.create + strict-tool-use path below. See lib/config.ts.
+  const options = resolveAnthropicClientOptions();
+  if (!options) throw new MissingApiKeyError();
+  if (!cachedClient) cachedClient = new Anthropic(options);
   return cachedClient;
 }
 
@@ -163,6 +178,14 @@ export async function extractInvoice(
   const client = getClient();
   const base64 = bytes.toString("base64");
 
+  // Prompt caching intentionally NOT applied. Caching is a prefix match with a
+  // per-model minimum cacheable prefix; on Haiku 4.5 that minimum is 4096 tokens.
+  // Our entire static prefix (system prompt + the record_invoice tool schema) is
+  // ~600–730 tokens, well under that floor, so a `cache_control` breakpoint would
+  // silently no-op (cache_creation_input_tokens: 0) — cost noise, not savings.
+  // The volatile part (the document bytes) is per-request and can't be cached.
+  // If the static prefix ever grows past ~4K tokens, add cache_control to the
+  // last tool definition (tools render before system, so it covers both).
   const response = await client.messages.create({
     model: EXTRACTION_MODEL,
     max_tokens: MAX_OUTPUT_TOKENS,

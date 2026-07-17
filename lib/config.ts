@@ -20,11 +20,54 @@
  * tier is the right call — swapping to a stronger model is a one-line change
  * here. The API alias `claude-haiku-4-5` resolves to the pinned snapshot
  * `claude-haiku-4-5-20251001`.
+ *
+ * Overridable via the `EXTRACTION_MODEL` env var so the SAME code can target the
+ * model addressed the OpenRouter way at eval time (`anthropic/claude-haiku-4.5`)
+ * without a code change. Defaults to the native Anthropic alias — production is
+ * unaffected. See the OpenRouter routing block below and DECISIONS.md.
  */
-export const EXTRACTION_MODEL = "claude-haiku-4-5";
+export const EXTRACTION_MODEL = process.env.EXTRACTION_MODEL ?? "claude-haiku-4-5";
 
 /** Hard cap on output tokens for one extraction. A structured invoice fits easily. */
 export const MAX_OUTPUT_TOKENS = 4096;
+
+// --- Provider routing (native Anthropic vs OpenRouter "Anthropic Skin") ------
+// The demo's selling point is the NATIVE @anthropic-ai/sdk. OpenRouter exposes
+// an Anthropic-Messages-compatible endpoint (its "Anthropic Skin") that the same
+// official SDK can target by pointing `baseURL` at it and authenticating with a
+// Bearer token. Because it speaks the native Messages API, the SAME client, tool
+// schemas, and tool-use code path serve both providers — the only differences
+// are the base URL and Bearer auth. See DECISIONS.md.
+/** Root of OpenRouter's Anthropic-Messages-compatible endpoint. */
+export const OPENROUTER_BASE_URL = "https://openrouter.ai/api";
+
+/**
+ * Constructor options for `new Anthropic(...)`, resolved from the environment.
+ * `{}` = native (the SDK reads `ANTHROPIC_API_KEY` itself); the OpenRouter form
+ * carries the base URL + Bearer token (`authToken`, NOT `apiKey` — OpenRouter
+ * authenticates with `Authorization: Bearer`).
+ */
+export type AnthropicClientOptions =
+  | Record<string, never>
+  | { baseURL: string; authToken: string };
+
+/**
+ * Pick how to construct the Anthropic client, from env vars only:
+ *   - `ANTHROPIC_API_KEY` set   → `{}` (native Anthropic; behaviour unchanged).
+ *   - else `OPENROUTER_API_KEY` → base URL + `authToken` for the Anthropic Skin.
+ *   - else                      → `null` (caller raises MissingApiKeyError).
+ *
+ * Anthropic always wins when both are set, so production behaviour is untouched
+ * — the OpenRouter route only ever engages when `ANTHROPIC_API_KEY` is absent.
+ */
+export function resolveAnthropicClientOptions(): AnthropicClientOptions | null {
+  if (process.env.ANTHROPIC_API_KEY) return {};
+  const openrouterKey = process.env.OPENROUTER_API_KEY;
+  if (openrouterKey) {
+    return { baseURL: OPENROUTER_BASE_URL, authToken: openrouterKey };
+  }
+  return null;
+}
 
 // --- Upload limits ----------------------------------------------------------
 /** Max upload size. Kept well under the serverless body limit; see DECISIONS.md. */
