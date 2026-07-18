@@ -129,7 +129,7 @@ export async function POST(req: Request) {
       );
     }
     if (err instanceof Anthropic.RateLimitError) {
-      return bad(429, "upstream_rate_limit", "The model is busy — try again shortly.");
+      return bad(429, "upstream_rate_limit", "The model is busy. Try again shortly.");
     }
     if (err instanceof Anthropic.APIError) {
       return bad(502, "upstream_error", "The extraction service returned an error.");

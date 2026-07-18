@@ -170,7 +170,7 @@ export default function ResultView({ result, previewUrl, media }: Props) {
 
         {derived.documentFlags.includes("arithmetic_mismatch") && (
           <div className={styles.docFlag}>
-            Line items don&apos;t reconcile with the subtotal/total — check the amounts.
+            Line items don&apos;t reconcile with the subtotal/total. Check the amounts.
           </div>
         )}
 
@@ -190,7 +190,7 @@ export default function ResultView({ result, previewUrl, media }: Props) {
                       type={f.kind === "number" ? "number" : "text"}
                       step={f.kind === "number" ? "0.01" : undefined}
                       value={headerValue(invoice, f.key)}
-                      placeholder={f.optional ? "—" : ""}
+                      placeholder=""
                       onChange={(e) => setHeader(f.key, e.target.value, f.kind, f.optional)}
                     />
                   </td>

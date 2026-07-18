@@ -47,7 +47,7 @@ const COOLING_DOWN: GuardVerdict = {
   ok: false,
   status: 429,
   error: "cooling_down",
-  message: "The demo is cooling down — try again in a minute.",
+  message: "The demo is cooling down. Try again in a minute.",
 };
 
 /**

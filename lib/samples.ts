@@ -19,7 +19,7 @@ export const SAMPLES: SampleDoc[] = [
     path: "/samples/northwind-services-invoice.pdf",
     media: "application/pdf",
     label: "Services invoice (PDF)",
-    blurb: "Clean multi-line services invoice — subtotal, tax, and total all reconcile.",
+    blurb: "Clean multi-line services invoice. Subtotal, tax, and total all reconcile.",
   },
   {
     id: "orbit-supply",
@@ -33,6 +33,6 @@ export const SAMPLES: SampleDoc[] = [
     path: "/samples/corner-cafe-receipt.png",
     media: "image/png",
     label: "Cafe receipt (image)",
-    blurb: "A small photographed-style receipt image — exercises the vision path.",
+    blurb: "A small photographed-style receipt image that exercises the vision path.",
   },
 ];

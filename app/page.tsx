@@ -136,8 +136,8 @@ export default function Home() {
       <header className={styles.header}>
         <h1 className={styles.title}>Invoice Inbox</h1>
         <p className={styles.tagline}>
-          Drop an invoice or receipt → structured JSON with per-field confidence →
-          review and export. Extraction runs on the native Anthropic API.
+          Drop an invoice or receipt and get review-ready fields with per-field
+          confidence, then export CSV. Extraction runs on the native Anthropic API.
         </p>
       </header>
 

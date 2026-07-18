@@ -1,13 +1,7 @@
 /* App-level styling built ON ios26.css tokens/primitives (imported first).
-   The only token override is the per-app accent. Light + dark come for free
-   from ios26.css because everything here references tokens, never raw hex. */
-
-:root {
-  --tint: var(--system-teal);
-  /* Teal is a light accent — use a dark label on filled-tint surfaces
-     (Apple does the same on yellow) so white-on-teal never fails contrast. */
-  --tint-contrast: rgba(0, 0, 0, 0.88);
-}
+   The unified accent ("Tessera Petrol") and its per-scheme contrast live in
+   ios26.css — this file no longer overrides --tint. Light + dark come for free
+   because everything here references tokens, never raw hex. */
 
 * {
   box-sizing: border-box;
